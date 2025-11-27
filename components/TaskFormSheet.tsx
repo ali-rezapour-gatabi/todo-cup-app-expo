@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, Keyboard, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import DateTimePicker, { DateTimePickerAndroid, DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { CalendarClock, CalendarDays, CheckSquare, Clock3, FileText, Layers } from 'lucide-react-native';
+import { CalendarClock, CalendarDays, CheckSquare, Clock3, FileText, Layers, Mic } from 'lucide-react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,6 +17,7 @@ import { Task } from '@/database/types';
 import { useTodoStore } from '@/stores/useTodoStore';
 import { todayIso } from '@/utils/date';
 import { useToast } from '@/components/ui/toast';
+import { VoiceTab } from '@/components/VoiceTab';
 
 const defaultTime = () => {
   const now = new Date();
@@ -46,7 +47,7 @@ const taskSchema = z.object({
 
 export type TaskFormValues = z.infer<typeof taskSchema>;
 
-type TabKey = 'details' | 'schedule';
+type TabKey = 'details' | 'schedule' | 'voice';
 
 type Props = {
   visible: boolean;
@@ -54,9 +55,10 @@ type Props = {
   task?: Task | null;
 };
 
-const { height: screenHeight } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const MAX_SHEET_HEIGHT = Math.min(screenHeight * 0.8, 600);
 const MIN_SHEET_HEIGHT = 300;
+const TAB_INDEX: Record<TabKey, number> = { details: 0, schedule: 1, voice: 2 };
 
 export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
   const scheme = useColorScheme() ?? 'light';
@@ -113,7 +115,7 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
 
   useEffect(() => {
     Animated.spring(tabSlideAnim, {
-      toValue: activeTab === 'details' ? 0 : 1,
+      toValue: TAB_INDEX[activeTab],
       damping: 20,
       stiffness: 200,
       useNativeDriver: true,
@@ -262,26 +264,31 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
 
   const formTitle = task ? 'ویرایش فعالیت' : 'فعالیت جدید';
 
-  // انیمیشن اسلاید بین تب‌ها
   const detailsTranslateX = tabSlideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -Dimensions.get('window').width],
+    inputRange: [0, 1, 2],
+    outputRange: [0, -screenWidth, -2 * screenWidth],
   });
 
   const scheduleTranslateX = tabSlideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [Dimensions.get('window').width, 0],
+    inputRange: [0, 1, 2],
+    outputRange: [screenWidth, 0, -screenWidth],
   });
 
-  const detailsOpacity = tabSlideAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [1, 0, 0],
+  const voiceTranslateX = tabSlideAnim.interpolate({
+    inputRange: [0, 1, 2],
+    outputRange: [2 * screenWidth, screenWidth, 0],
   });
 
-  const scheduleOpacity = tabSlideAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0, 0, 1],
-  });
+  const makeOpacity = (index: number) =>
+    tabSlideAnim.interpolate({
+      inputRange: [index - 0.5, index, index + 0.5],
+      outputRange: [0, 1, 0],
+      extrapolate: 'clamp',
+    });
+
+  const detailsOpacity = makeOpacity(0);
+  const scheduleOpacity = makeOpacity(1);
+  const voiceOpacity = makeOpacity(2);
 
   return (
     <Modal visible transparent animationType="none" onRequestClose={requestClose} statusBarTranslucent>
@@ -314,6 +321,7 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
               {[
                 { key: 'details', icon: <FileText size={24} color={palette.icon} /> },
                 { key: 'schedule', icon: <CalendarClock size={24} color={palette.icon} /> },
+                { key: 'voice', icon: <Mic size={24} color={palette.icon} /> },
               ].map((tab) => {
                 const selected = activeTab === tab.key;
                 return (
@@ -476,6 +484,23 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
                       )}
                     />
                   </View>
+                </View>
+              </ScrollView>
+            </Animated.View>
+
+            <Animated.View
+              style={[
+                styles.tabAnimatedContent,
+                {
+                  opacity: voiceOpacity,
+                  transform: [{ translateX: voiceTranslateX }],
+                },
+              ]}
+              pointerEvents={activeTab === 'voice' ? 'auto' : 'none'}
+            >
+              <ScrollView style={styles.formScroll} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <View style={styles.tabContent}>
+                  <VoiceTab />
                 </View>
               </ScrollView>
             </Animated.View>

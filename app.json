@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "این برنامه برای ثبت فعالیت‌ها به میکروفون نیاز دارد."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +23,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.alirg1999.TodoCup"
+      "package": "com.alirg1999.TodoCup",
+      "permissions": ["RECORD_AUDIO"]
     },
     "web": {
       "output": "static",

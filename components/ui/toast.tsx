@@ -98,9 +98,7 @@ const ToastCard = ({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
       pointerEvents="box-none"
     >
       <View style={styles.row}>
-        <View style={[styles.iconWrap, { backgroundColor: variant.iconBackground }]}>
-          {variant.icon}
-        </View>
+        <View style={[styles.iconWrap, { backgroundColor: variant.iconBackground }]}>{variant.icon}</View>
 
         <View style={styles.texts}>
           {toast.title ? (
