@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Platform, StyleSheet, TextInput, View } from 'react-native';
-import { Mic, Square } from 'lucide-react-native';
+import { Animated, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Mic } from 'lucide-react-native';
 import { WebView } from 'react-native-webview';
 import type { WebViewMessageEvent } from 'react-native-webview';
 
@@ -8,7 +8,6 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { vazirmatnFamilies } from '@/constants/fonts';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import {
   createBrowserRecognizer,
@@ -20,7 +19,7 @@ import {
   type RecognitionPayload,
 } from '@/utils/whisperService';
 
-type RecorderState = 'idle' | 'recording' | 'transcribing';
+type RecorderState = 'idle' | 'recording';
 
 export const VoiceTab = () => {
   const scheme = useColorScheme() ?? 'light';
@@ -36,8 +35,7 @@ export const VoiceTab = () => {
   const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
 
   const isRecording = state === 'recording';
-  const isTranscribing = state === 'transcribing';
-  const isStartDisabled = isRecording || isTranscribing || !isSupported;
+  const isStartDisabled = !isSupported;
 
   const animateLevel = useCallback(
     (value: number) => {
@@ -114,8 +112,8 @@ export const VoiceTab = () => {
     };
   }, [cleanupListening]);
 
-  const startRecording = useCallback(() => {
-    if (isRecording || isTranscribing || !isSupported) return;
+  const startListening = useCallback(() => {
+    if (!isSupported) return;
 
     if (Platform.OS === 'web') {
       if (!browserRecognizerRef.current) {
@@ -146,9 +144,9 @@ export const VoiceTab = () => {
 
     setState('recording');
     startPulse();
-  }, [handleError, handleResult, handleStop, isRecording, isSupported, isTranscribing, showToast, startPulse]);
+  }, [handleError, handleResult, handleStop, isSupported, showToast, startPulse]);
 
-  const stopRecording = useCallback(() => {
+  const stopListening = useCallback(() => {
     if (!isRecording) return;
 
     if (Platform.OS === 'web') {
@@ -157,9 +155,17 @@ export const VoiceTab = () => {
       stopNativeListening(webViewRef);
     }
 
-    setState('transcribing');
+    setState('idle');
     stopPulse();
   }, [isRecording, stopPulse]);
+
+  const toggleListening = useCallback(() => {
+    if (!isRecording) {
+      startListening();
+    } else {
+      stopListening();
+    }
+  }, [isRecording, startListening, stopListening]);
 
   const handleWebViewMessage = useCallback(
     (event: WebViewMessageEvent) => {
@@ -186,30 +192,11 @@ export const VoiceTab = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.actionsRow}>
-        <Button
-          title="Start Recording"
-          variant="secondary"
-          icon={<Mic size={18} color={palette.text} />}
-          disabled={isStartDisabled}
-          onPress={startRecording}
-          style={[styles.actionButton, { borderColor: palette.border, backgroundColor: palette.surface }]}
-        />
-        <Button
-          title={isTranscribing ? 'Transcribing...' : 'Stop Recording'}
-          variant="destructive"
-          icon={<Square size={18} color="#fff" />}
-          disabled={!isRecording}
-          onPress={stopRecording}
-          style={styles.actionButton}
-        />
-      </View>
-
       <View style={styles.textAreaHeader}>
         <ThemedText weight="bold" style={{ color: palette.text }}>
           متن استخراج شده
         </ThemedText>
-        <ThemedText style={styles.secondaryText}>بعد از توقف ضبط، متن به صورت خودکار نمایش داده می‌شود.</ThemedText>
+        <ThemedText style={styles.secondaryText}>بعد از پایان صحبت، متن به صورت خودکار نمایش داده می‌شود.</ThemedText>
       </View>
       <TextInput
         multiline
@@ -231,6 +218,44 @@ export const VoiceTab = () => {
           style={styles.hiddenWebView}
         />
       ) : null}
+
+      <View style={styles.actionsRow}>
+        <View style={styles.micWrapper}>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.micPulse,
+              {
+                backgroundColor: palette.tint,
+                opacity: isRecording ? levelAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.5] }) : 0,
+                transform: [
+                  {
+                    scale: levelAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [1, 1.35],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
+          <Pressable
+            disabled={isStartDisabled}
+            onPress={toggleListening}
+            style={({ pressed }) => [
+              styles.micButton,
+              {
+                backgroundColor: isRecording ? palette.tint : palette.surface,
+                borderColor: palette.tint,
+                opacity: isStartDisabled ? 0.4 : 1,
+              },
+              pressed && { transform: [{ scale: 0.96 }] },
+            ]}
+          >
+            <Mic size={28} color={isRecording ? palette.background : palette.text} />
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 };
@@ -240,32 +265,33 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   actionsRow: {
-    flexDirection: 'row-reverse',
-    gap: 10,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  actionButton: {
-    flex: 1,
-  },
-  waveform: {
-    borderRadius: 16,
-    padding: 12,
-    gap: 8,
-  },
-  waveBars: {
-    flexDirection: 'row',
+  micWrapper: {
+    width: 96,
+    height: 96,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    height: 46,
+    justifyContent: 'center',
   },
-  waveBar: {
-    width: 10,
-    borderRadius: 10,
+  micPulse: {
+    position: 'absolute',
+    width: 96,
+    height: 96,
+    borderRadius: 999,
   },
-  waveStatus: {
-    flexDirection: 'row-reverse',
+  micButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 999,
+    borderWidth: 2,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 5,
   },
   textAreaHeader: {
     gap: 4,
@@ -277,23 +303,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     textAlign: 'right',
     textAlignVertical: 'top',
-    minHeight: 140,
+    minHeight: 170,
     fontFamily: vazirmatnFamilies.regular,
   },
   secondaryText: {
     fontSize: 12,
     opacity: 0.7,
-  },
-  insertRow: {
-    flexDirection: 'row-reverse',
-    gap: 10,
-  },
-  insertButton: {
-    flex: 1,
-    padding: 12,
-    borderWidth: 1,
-    borderRadius: 12,
-    alignItems: 'center',
   },
   hiddenWebView: {
     width: 0,

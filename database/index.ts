@@ -14,10 +14,11 @@ const createTablesSQL = `
     description TEXT,
     priority INTEGER,
     date TEXT,
-    time TEXT,
-    repeatDaily INTEGER DEFAULT 0,
-    createdAt TEXT,
-    updatedAt TEXT
+  time TEXT,
+  repeatDaily INTEGER DEFAULT 0,
+  isCompleted INTEGER DEFAULT 0,
+  createdAt TEXT,
+  updatedAt TEXT
   );
 
   CREATE TABLE IF NOT EXISTS profile (
@@ -33,10 +34,24 @@ export const getDb = async () => {
     dbPromise = (async () => {
       const db = await SQLite.openDatabaseAsync('todocup.db');
       await db.execAsync(createTablesSQL);
+      await ensureTaskColumns(db);
       return db;
     })();
   }
   return dbPromise;
+};
+
+const ensureTaskColumns = async (db: SQLite.SQLiteDatabase) => {
+  const columns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(tasks)');
+  const columnNames = columns.map((column) => column.name);
+
+  if (!columnNames.includes('isCompleted')) {
+    await db.execAsync('ALTER TABLE tasks ADD COLUMN isCompleted INTEGER DEFAULT 0');
+  }
+
+  if (!columnNames.includes('updatedAt')) {
+    await db.execAsync('ALTER TABLE tasks ADD COLUMN updatedAt TEXT');
+  }
 };
 
 export const initializeDatabase = async () => {

@@ -1,17 +1,19 @@
 import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { PenLine, RefreshCcw, TimerIcon, Trash2 } from 'lucide-react-native';
+import { TimerIcon } from 'lucide-react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Task } from '@/database/types';
+import { Checkbox } from './ui/check-box';
 
 type Props = {
   task: Task;
   onPress?: () => void;
   onDelete?: () => void;
   onToggleRepeat?: () => void;
+  onToggleCompleted?: (next: boolean) => void;
 };
 
 const priorityColor: Record<Task['priority'], string> = {
@@ -20,42 +22,45 @@ const priorityColor: Record<Task['priority'], string> = {
   3: '#EF4444',
 };
 
-const TaskCardComponent = ({ task, onPress, onDelete, onToggleRepeat }: Props) => {
+const TaskCardComponent = ({ task, onPress, onToggleCompleted }: Props) => {
   const scheme = useColorScheme() ?? 'dark';
   const palette = Colors[scheme];
 
+  const completed = task.isCompleted;
+
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.container, { backgroundColor: palette.surface, borderColor: palette.border }, pressed && styles.pressed]}>
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <View style={[styles.priorityDot, { backgroundColor: priorityColor[task.priority] }]} />
-          <ThemedText style={styles.title} weight="bold">
-            {task.title}
-          </ThemedText>
+    <View style={{ display: 'flex', flexDirection: 'row-reverse', overflow: 'hidden' }}>
+      <Checkbox value={completed} onChange={onToggleCompleted} style={{ width: 35, height: 35, marginLeft: 5 }} />
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.container,
+          {
+            backgroundColor: palette.surface,
+            borderColor: priorityColor[task.priority],
+            opacity: completed ? 0.7 : 1,
+          },
+          pressed && styles.pressed,
+        ]}
+      >
+        <View style={styles.header}>
+          <View style={styles.titleRow}>
+            <ThemedText style={[completed && styles.completedText]} weight="bold">
+              {task.title}
+            </ThemedText>
+          </View>
         </View>
-      </View>
 
-      {task.description ? <ThemedText style={styles.description}>{task.description}</ThemedText> : null}
+        {task.description ? <ThemedText style={[styles.description, completed && styles.completedText]}>{task.description}</ThemedText> : null}
 
-      <View style={styles.footer}>
-        <View style={styles.meta}>
-          <TimerIcon size={16} color={palette.icon} />
-          <ThemedText style={styles.metaText}>{task.time}</ThemedText>
+        <View style={styles.footer}>
+          <View style={styles.meta}>
+            <ThemedText style={[styles.metaText, completed && styles.completedText, { paddingTop: 4 }]}>{task.time}</ThemedText>
+            <TimerIcon size={17} color={palette.icon} />
+          </View>
         </View>
-
-        <View style={styles.actions}>
-          <Pressable onPress={onToggleRepeat} style={styles.iconButton}>
-            <RefreshCcw size={18} color={task.repeatDaily ? palette.tint : palette.icon} />
-          </Pressable>
-          <Pressable onPress={onPress} style={styles.iconButton}>
-            <PenLine size={18} color={palette.icon} />
-          </Pressable>
-          <Pressable onPress={onDelete} style={styles.iconButton}>
-            <Trash2 size={18} color="#ef4444" />
-          </Pressable>
-        </View>
-      </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 };
 
@@ -65,8 +70,11 @@ export const TaskCard = memo(TaskCardComponent, (prev, next) => prev.task === ne
 
 const styles = StyleSheet.create({
   container: {
+    width: '85%',
     borderWidth: 1,
-    borderRadius: 14,
+    borderStartEndRadius: 14,
+    borderEndEndRadius: 14,
+    borderStartStartRadius: 14,
     padding: 14,
     gap: 10,
   },
@@ -74,16 +82,15 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.995 }],
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   titleRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  title: {},
   description: {
     opacity: 0.8,
     lineHeight: 22,
@@ -91,23 +98,23 @@ const styles = StyleSheet.create({
   priorityText: {
     color: '#6b7280',
   },
-  priorityDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
   footer: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   meta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    gap: 4,
   },
   metaText: {
     color: '#6b7280',
+  },
+  completedText: {
+    textDecorationLine: 'line-through',
+    opacity: 0.65,
   },
   actions: {
     flexDirection: 'row-reverse',

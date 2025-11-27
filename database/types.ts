@@ -8,6 +8,7 @@ export type TaskRow = {
   date: string;
   time: string;
   repeatDaily: boolean;
+  isCompleted: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -23,10 +24,12 @@ export type TaskInput = {
   date: string;
   time: string;
   repeatDaily: boolean;
+  isCompleted?: boolean;
 };
 
 export type TaskUpdate = Partial<Omit<TaskInput, 'repeatDaily'>> & {
   repeatDaily?: boolean;
+  isCompleted?: boolean;
 };
 
 export type ProfileSettings = {

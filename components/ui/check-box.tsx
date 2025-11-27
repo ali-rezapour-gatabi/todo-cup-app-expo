@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable } from 'react-native';
+import { Pressable, StyleProp, ViewStyle } from 'react-native';
 import { Svg, Path } from 'react-native-svg';
 import { MotiView } from 'moti';
 
@@ -10,15 +10,16 @@ type CheckboxProps = {
   value?: boolean;
   checked?: boolean;
   onChange?: (next: boolean) => void;
+  style?: StyleProp<ViewStyle>;
 };
 
 const CheckIcon = ({ color }: { color: string }) => (
   <Svg width="16" height="12" viewBox="0 0 16 12" fill="none">
-    <Path d="M1 6L5.5 10.5L15 1.5" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    <Path d="M1 6L5.5 10.5L15 1.5" stroke={color} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
 );
 
-export const Checkbox = ({ value, checked, onChange }: CheckboxProps) => {
+export const Checkbox = ({ value, checked, onChange, style }: CheckboxProps) => {
   const scheme = useColorScheme() ?? 'light';
   const palette = Colors[scheme];
 
@@ -33,9 +34,10 @@ export const Checkbox = ({ value, checked, onChange }: CheckboxProps) => {
           borderRadius: 8,
           alignItems: 'center',
           justifyContent: 'center',
-          borderWidth: 2,
+          borderWidth: 2.5,
           borderColor: isChecked ? palette.tint : palette.border,
           backgroundColor: isChecked ? palette.tint : 'transparent',
+          ...(style as StyleSheet),
         }}
         from={{ scale: 0.9, opacity: 0 }}
         animate={{

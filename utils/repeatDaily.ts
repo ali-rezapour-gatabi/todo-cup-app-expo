@@ -29,9 +29,9 @@ export const runDailyRepeat = async (lastRepeatCheck?: string): Promise<RepeatCh
       if (existing) continue;
 
       await db.runAsync(
-        `INSERT INTO tasks (title, description, priority, date, time, repeatDaily, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [task.title, task.description || null, task.priority, tomorrow, task.time, task.repeatDaily, timestamp, timestamp]
+        `INSERT INTO tasks (title, description, priority, date, time, repeatDaily, isCompleted, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [task.title, task.description || null, task.priority, tomorrow, task.time, task.repeatDaily, 0, timestamp, timestamp]
       );
       created += 1;
     }

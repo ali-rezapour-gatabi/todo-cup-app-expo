@@ -5,7 +5,8 @@ import { validateTaskInput } from '@/utils/validation';
 const normalizeTask = (row: TaskRow): Task => ({
   ...row,
   description: row.description ?? '',
-  repeatDaily: row.repeatDaily,
+  repeatDaily: Boolean(row.repeatDaily),
+  isCompleted: Boolean(row.isCompleted),
 });
 
 const sanitizeTask = (input: TaskInput | TaskUpdate, fallback?: Task) => {
@@ -17,6 +18,7 @@ const sanitizeTask = (input: TaskInput | TaskUpdate, fallback?: Task) => {
     date: input.date ?? base.date,
     time: input.time ?? base.time,
     repeatDaily: input.repeatDaily !== undefined ? input.repeatDaily : base.repeatDaily,
+    isCompleted: input.isCompleted !== undefined ? input.isCompleted : base.isCompleted ?? false,
   };
 };
 
@@ -36,9 +38,9 @@ export const createTask = async (input: TaskInput): Promise<Task> => {
   const timestamp = touchTimestamp();
 
   const result = await run(
-    `INSERT INTO tasks (title, description, priority, date, time, repeatDaily, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [data.title, data.description || null, data.priority, data.date, data.time, data.repeatDaily ?? 0, timestamp, timestamp]
+    `INSERT INTO tasks (title, description, priority, date, time, repeatDaily, isCompleted, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [data.title, data.description || null, data.priority, data.date, data.time, data.repeatDaily ?? 0, data.isCompleted ?? 0, timestamp, timestamp]
   );
 
   const inserted = await getFirst<TaskRow>('SELECT * FROM tasks WHERE id = ?', [result.lastInsertRowId]);
@@ -61,9 +63,19 @@ export const updateTask = async (id: number, changes: TaskUpdate): Promise<Task>
   const timestamp = touchTimestamp();
 
   await run(
-    `UPDATE tasks SET title = ?, description = ?, priority = ?, date = ?, time = ?, repeatDaily = ?, updatedAt = ?
+    `UPDATE tasks SET title = ?, description = ?, priority = ?, date = ?, time = ?, repeatDaily = ?, isCompleted = ?, updatedAt = ?
      WHERE id = ?`,
-    [next.title, next.description || null, next.priority, next.date, next.time, next.repeatDaily ?? current.repeatDaily, timestamp, id]
+    [
+      next.title,
+      next.description || null,
+      next.priority,
+      next.date,
+      next.time,
+      next.repeatDaily ?? current.repeatDaily,
+      next.isCompleted ?? current.isCompleted,
+      timestamp,
+      id,
+    ]
   );
 
   const updated = await fetchTaskById(id);
@@ -87,6 +99,16 @@ export const toggleTaskRepeat = async (id: number): Promise<Task> => {
   return (await fetchTaskById(id)) as Task;
 };
 
+export const toggleTaskCompleted = async (id: number, forceValue?: boolean): Promise<Task> => {
+  const current = await fetchTaskById(id);
+  if (!current) {
+    throw new Error('فعالیت پیدا نشد.');
+  }
+  const nextCompleted = forceValue !== undefined ? forceValue : !current.isCompleted;
+  await run('UPDATE tasks SET isCompleted = ?, updatedAt = ? WHERE id = ?', [nextCompleted ? 1 : 0, touchTimestamp(), id]);
+  return (await fetchTaskById(id)) as Task;
+};
+
 export const fetchRepeatingTasks = async (): Promise<Task[]> => {
   const rows = await getAll<TaskRow>('SELECT * FROM tasks WHERE repeatDaily = 1');
   return rows.map(normalizeTask);
@@ -95,8 +117,8 @@ export const fetchRepeatingTasks = async (): Promise<Task[]> => {
 export const cloneTaskForDate = async (task: Task, targetDate: string) => {
   const timestamp = touchTimestamp();
   await run(
-    `INSERT INTO tasks (title, description, priority, date, time, repeatDaily, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [task.title, task.description || null, task.priority, targetDate, task.time, task.repeatDaily, timestamp, timestamp]
+    `INSERT INTO tasks (title, description, priority, date, time, repeatDaily, isCompleted, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [task.title, task.description || null, task.priority, targetDate, task.time, task.repeatDaily, 0, timestamp, timestamp]
   );
 };

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import { initializeDatabase } from '@/database';
 import { fetchProfile, upsertProfile } from '@/database/profile';
-import { createTask, deleteTask as deleteTaskDb, fetchTasks, toggleTaskRepeat, updateTask as updateTaskDb } from '@/database/tasks';
+import { createTask, deleteTask as deleteTaskDb, fetchTasks, toggleTaskCompleted, toggleTaskRepeat, updateTask as updateTaskDb } from '@/database/tasks';
 import { Profile, ProfileInput, Task, TaskInput, TaskUpdate } from '@/database/types';
 import { runDailyRepeat, RepeatCheckResult } from '@/utils/repeatDaily';
 
@@ -15,6 +15,7 @@ type TodoStore = {
   updateTask: (id: number, changes: TaskUpdate) => Promise<Task>;
   deleteTask: (id: number) => Promise<void>;
   toggleRepeat: (id: number) => Promise<Task>;
+  toggleCompleted: (id: number, value?: boolean) => Promise<Task>;
   runDailyRepeatCheck: () => Promise<RepeatCheckResult>;
   loadProfile: () => Promise<Profile>;
   saveProfile: (input: ProfileInput) => Promise<Profile>;
@@ -53,6 +54,14 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
 
   toggleRepeat: async (id) => {
     const updated = await toggleTaskRepeat(id);
+    set((state) => ({
+      tasks: state.tasks.map((task) => (task.id === id ? updated : task)),
+    }));
+    return updated;
+  },
+
+  toggleCompleted: async (id, value) => {
+    const updated = await toggleTaskCompleted(id, value);
     set((state) => ({
       tasks: state.tasks.map((task) => (task.id === id ? updated : task)),
     }));

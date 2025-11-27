@@ -50,11 +50,21 @@ export const HomeScreen = () => {
   const loadTasks = useTodoStore((state) => state.loadTasks);
   const deleteTask = useTodoStore((state) => state.deleteTask);
   const toggleRepeat = useTodoStore((state) => state.toggleRepeat);
+  const toggleCompleted = useTodoStore((state) => state.toggleCompleted);
   useAppInit();
 
   const [refreshing, setRefreshing] = useState(false);
   const [formVisible, setFormVisible] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  const handleToggleCompleted = async (task: Task, next: boolean) => {
+    try {
+      await toggleCompleted(task.id, next);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'خطا در به‌روزرسانی وضعیت انجام شده.';
+      showToast({ type: 'error', title: 'خطا', message });
+    }
+  };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -129,7 +139,13 @@ export const HomeScreen = () => {
             <View style={styles.taskList}>
               {item.tasks.map((task, index) => (
                 <View key={task.id} style={index > 0 ? styles.taskSpacing : undefined}>
-                  <TaskCard task={task} onPress={() => openEdit(task)} onDelete={() => handleDelete(task.id)} onToggleRepeat={() => toggleRepeat(task.id)} />
+                  <TaskCard
+                    task={task}
+                    onPress={() => openEdit(task)}
+                    onDelete={() => handleDelete(task.id)}
+                    onToggleRepeat={() => toggleRepeat(task.id)}
+                    onToggleCompleted={(next) => handleToggleCompleted(task, next)}
+                  />
                 </View>
               ))}
             </View>
