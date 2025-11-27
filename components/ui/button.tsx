@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, TextStyle, type PressableProps, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, TextStyle, View, type PressableProps, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
@@ -11,16 +11,10 @@ type ButtonProps = PressableProps & {
   title: any;
   variant?: ButtonVariant;
   fullWidth?: boolean;
+  icon?: React.ReactNode;
 };
 
-export function Button({
-  title,
-  variant = 'primary',
-  fullWidth = false,
-  disabled,
-  style,
-  ...pressableProps
-}: ButtonProps) {
+export function Button({ title, variant = 'primary', fullWidth = false, icon, disabled, style, ...pressableProps }: ButtonProps) {
   const colorScheme = useColorScheme() ?? 'light';
   const palette = Colors[colorScheme];
 
@@ -31,10 +25,13 @@ export function Button({
       accessibilityRole="button"
       disabled={disabled}
       style={({ pressed }) => {
-        const resolvedStyle = typeof style === 'function' ? style({
-          pressed,
-          hovered: false
-        }) : style;
+        const resolvedStyle =
+          typeof style === 'function'
+            ? style({
+                pressed,
+                hovered: false,
+              })
+            : style;
 
         return [
           styles.base,
@@ -48,7 +45,10 @@ export function Button({
       }}
       {...pressableProps}
     >
-      <ThemedText style={[styles.label, variantStyle.label]}>{title}</ThemedText>
+      {icon ? <View style={styles.icon}>{icon}</View> : null}
+      <ThemedText style={[styles.label, variantStyle.label]} weight="bold">
+        {title}
+      </ThemedText>
     </Pressable>
   );
 }
@@ -108,7 +108,7 @@ function getVariantStyles(variant: ButtonVariant, palette: Palette) {
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 48,
+    minHeight: 38,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
@@ -126,7 +126,8 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.6,
   },
-  label: {
-    fontWeight: '700',
+  label: {},
+  icon: {
+    marginLeft: 6,
   },
 });

@@ -1,19 +1,38 @@
-import { Stack } from 'expo-router';
+import { Tabs } from 'expo-router';
+import { ListChecks, User } from 'lucide-react-native';
+
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function Layout() {
+  const scheme = useColorScheme() ?? 'light';
+  const palette = Colors[scheme];
+
   return (
-    <Stack
+    <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarActiveTintColor: palette.tabIconSelected,
+        tabBarInactiveTintColor: palette.tabIconDefault,
+        tabBarStyle: {
+          display: 'none',
+        },
       }}
     >
-      <Stack.Screen name="index" />
-      <Stack.Screen
-        name="add-todo-screen"
+      <Tabs.Screen
+        name="index"
         options={{
-          presentation: 'modal',
+          title: 'کارها',
+          tabBarIcon: ({ color }) => <ListChecks size={22} color={color} />,
         }}
       />
-    </Stack>
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'پروفایل',
+          tabBarIcon: ({ color }) => <User size={22} color={color} />,
+        }}
+      />
+    </Tabs>
   );
 }
