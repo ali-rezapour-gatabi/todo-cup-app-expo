@@ -43,7 +43,7 @@ export const Checkbox = ({ value, checked, onChange, style }: CheckboxProps) => 
         animate={{
           scale: isChecked ? 1 : 0.95,
           opacity: 1,
-          backgroundColor: isChecked ? palette.tint : 'transparent',
+          backgroundColor: isChecked ? palette.tint + 30 : 'transparent',
           borderColor: isChecked ? palette.tint : palette.border,
         }}
         transition={{

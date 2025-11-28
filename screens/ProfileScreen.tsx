@@ -1,77 +1,80 @@
 import { useEffect, useMemo } from 'react';
-import { Image, StyleSheet, TextInput, View } from 'react-native';
-
-import { ThemedText } from '@/components/themed-text';
-import { Button } from '@/components/ui/button';
-import { vazirmatnFamilies } from '@/constants/fonts';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useAppInit } from '@/hooks/useAppInit';
-import { useTodoStore } from '@/stores/useTodoStore';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import { Redo } from 'lucide-react-native';
+import { Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { ThemedText } from '@/components/themed-text';
+import { Button } from '@/components/ui/button';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTodoStore } from '@/stores/useTodoStore';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useToast } from '@/components/ui/toast';
+import { Colors } from '@/constants/theme';
+import { vazirmatnFamilies } from '@/constants/fonts';
+import { ArrowRight, Moon, Settings, Sun } from 'lucide-react-native';
+import { router } from 'expo-router';
 
 const profileSchema = z.object({
   name: z.string().trim().min(1, 'نام نمی‌تواند خالی باشد.'),
-  avatar: z
-    .string()
-    .trim()
-    .refine((value) => value.length === 0 || /^https?:\/\/.+/i.test(value), 'آدرس تصویر باید معتبر باشد.'),
+  email: z.string().trim().email('ایمیل وارد شده معتبر نیست.').optional().or(z.literal('')),
+  age: z.string().trim().regex(/^\d+$/, 'سن باید یک عدد باشد.').optional().or(z.literal('')),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-export const ProfileScreen = () => {
+type ThemeOption = 'light' | 'dark' | 'system';
+
+export function ProfileScreen() {
   const scheme = useColorScheme() ?? 'dark';
   const palette = Colors[scheme];
   const { showToast } = useToast();
+
   const profile = useTodoStore((state) => state.profile);
   const saveProfile = useTodoStore((state) => state.saveProfile);
-  const runDailyRepeatCheck = useTodoStore((state) => state.runDailyRepeatCheck);
-  const tasksCount = useTodoStore((state) => state.tasks.length);
-  useAppInit();
+  const currentTheme = useTodoStore((state) => state.theme);
+  const setTheme = useTodoStore((state) => state.setTheme);
 
   const defaultValues = useMemo<ProfileFormValues>(
     () => ({
-      name: 'کاربر',
-      avatar: '',
+      name: profile?.name ?? 'کاربر',
+      email: profile?.settings?.email ?? '',
+      age: profile?.settings?.age ? String(profile.settings.age) : '',
     }),
-    []
+    [profile]
   );
 
   const {
     control,
     handleSubmit,
     reset,
-    watch,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues,
     mode: 'onChange',
   });
 
-  const avatarValue = watch('avatar');
-
   useEffect(() => {
     if (profile) {
       reset({
         name: profile.name,
-        avatar: profile.avatar ?? '',
+        email: profile.settings?.email ?? '',
+        age: profile.settings?.age ? String(profile.settings.age) : '',
       });
-    } else {
-      reset(defaultValues);
     }
-  }, [profile, reset, defaultValues]);
+  }, [profile, reset]);
 
   const handleSave = async (values: ProfileFormValues) => {
     try {
-      await saveProfile({ name: values.name, avatar: values.avatar || undefined });
+      const updatedSettings = {
+        ...profile?.settings,
+        email: values.email || undefined,
+        age: values.age ? Number(values.age) : undefined,
+      };
+      await saveProfile({
+        name: values.name,
+        settings: updatedSettings,
+      });
       showToast({ type: 'success', title: 'ذخیره شد', message: 'پروفایل شما بروزرسانی شد.' });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'خطای ناشناخته رخ داد.';
@@ -79,148 +82,192 @@ export const ProfileScreen = () => {
     }
   };
 
-  const handleRepeatCheck = async () => {
-    const result = await runDailyRepeatCheck();
-    if (result.created > 0) {
-      showToast({ type: 'success', title: 'تکرار انجام شد', message: `${result.created} فعالیت برای فردا ساخته شد.` });
-    } else {
-      showToast({ type: 'info', title: 'تکرار روزانه', message: 'فعالیت‌ی جدیدی نیاز نبود. همه چیز به‌روز است.' });
-    }
-  };
+  const themeOptions: { key: ThemeOption; icon: any }[] = [
+    { key: 'light', icon: <Sun color={palette.completedTask} size={24} /> },
+    { key: 'dark', icon: <Moon color={palette.completedTask} size={24} /> },
+    { key: 'system', icon: <Settings color={palette.completedTask} size={24} /> },
+  ];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
-      <View style={{ display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', gap: 8 }}>
-        <Button style={{ width: 60, borderRadius: 18 }} title={null} icon={<Redo color={'white'} size={28} />} onPress={() => router.push('/')} />
+      <View style={styles.topHeader}>
+        <Button title={null} variant="ghost" icon={<ArrowRight color={palette.icon} size={30} />} onPress={() => router.push('/')} style={styles.backButton} />
         <ThemedText type="title">پروفایل</ThemedText>
+        <View style={styles.backButton} />
       </View>
 
-      <View style={styles.card}>
-        <View style={styles.avatarRow}>
-          <Image source={avatarValue ? { uri: avatarValue } : require('../assets/images/icon.png')} style={styles.avatar} />
-          <View style={{ flex: 1 }}>
-            <ThemedText style={styles.label} weight="bold">
-              نام
-            </ThemedText>
-            <Controller
-              control={control}
-              name="name"
-              render={({ field: { value, onChange, onBlur } }) => (
-                <TextInput
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  placeholder="نام شما"
-                  placeholderTextColor={palette.icon}
-                  style={[styles.input, { borderColor: palette.border, color: palette.text }]}
-                />
-              )}
-            />
-            {errors.name ? <ThemedText style={styles.errorText}>{errors.name.message}</ThemedText> : null}
-          </View>
-        </View>
+      <View style={styles.header}>
+        <Image source={require('../assets/images/personIcons.png')} style={[styles.avatar, { borderColor: palette.border }]} />
+        <ThemedText type="subtitle" style={{ marginTop: 8 }}>
+          {profile?.name ?? 'کاربر'}
+        </ThemedText>
+      </View>
 
+      <View style={styles.form}>
         <View style={styles.field}>
           <ThemedText style={styles.label} weight="bold">
-            آواتار (آدرس تصویر)
+            نام
           </ThemedText>
           <Controller
             control={control}
-            name="avatar"
+            name="name"
+            render={({ field: { value, onChange, onBlur } }) => (
+              <TextInput
+                value={value}
+                onBlur={onBlur}
+                onChangeText={onChange}
+                placeholder="نام خود را وارد کنید"
+                placeholderTextColor={palette.icon}
+                style={[styles.input, { borderColor: palette.border, color: palette.text, backgroundColor: palette.surface }]}
+              />
+            )}
+          />
+          {errors.name && <ThemedText style={styles.errorText}>{errors.name.message}</ThemedText>}
+        </View>
+        <View style={styles.field}>
+          <ThemedText style={styles.label} weight="bold">
+            ایمیل
+          </ThemedText>
+          <Controller
+            control={control}
+            name="email"
             render={({ field: { value, onChange, onBlur } }) => (
               <TextInput
                 value={value}
                 onChangeText={onChange}
                 onBlur={onBlur}
-                placeholder="https://نمونه.ir/avatar.jpg"
+                placeholder="ایمیل خود را وارد کنید"
                 placeholderTextColor={palette.icon}
-                style={[styles.input, { borderColor: palette.border, color: palette.text }]}
+                keyboardType="email-address"
                 autoCapitalize="none"
-                autoCorrect={false}
+                style={[styles.input, { borderColor: palette.border, color: palette.text, backgroundColor: palette.surface }]}
               />
             )}
           />
-          {errors.avatar ? <ThemedText style={styles.errorText}>{errors.avatar.message}</ThemedText> : null}
+          {errors.email && <ThemedText style={styles.errorText}>{errors.email.message}</ThemedText>}
         </View>
-
-        <View style={styles.metaRow}>
-          <ThemedText style={styles.metaLabel}>تعداد وظایف</ThemedText>
-          <ThemedText style={styles.metaValue} weight="bold">
-            {tasksCount}
+        <View style={styles.field}>
+          <ThemedText style={styles.label} weight="bold">
+            سن
           </ThemedText>
-        </View>
-
-        <View style={styles.metaRow}>
-          <ThemedText style={styles.metaLabel}>آخرین بررسی تکرار</ThemedText>
-          <ThemedText style={styles.metaValue} weight="bold">
-            {profile?.settings?.lastRepeatCheck ?? 'انجام نشده'}
-          </ThemedText>
-        </View>
-
-        <View style={styles.actions}>
-          <Button title="ذخیره پروفایل" variant="primary" fullWidth disabled={isSubmitting} onPress={handleSubmit(handleSave)} />
-          <Button title="اجرای تکرار روزانه" variant="secondary" fullWidth onPress={handleRepeatCheck} />
+          <Controller
+            control={control}
+            name="age"
+            render={({ field: { value, onChange, onBlur } }) => (
+              <TextInput
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="سن خود را وارد کنید"
+                placeholderTextColor={palette.icon}
+                keyboardType="numeric"
+                style={[styles.input, { borderColor: palette.border, color: palette.text, backgroundColor: palette.surface }]}
+              />
+            )}
+          />
+          {errors.age && <ThemedText style={styles.errorText}>{errors.age.message}</ThemedText>}
         </View>
       </View>
+
+      <View style={styles.section}>
+        <ThemedText style={styles.label} weight="bold">
+          تم برنامه
+        </ThemedText>
+        <View style={[styles.themeSelector, { borderColor: palette.border }]}>
+          {themeOptions.map(({ key, icon }) => (
+            <Pressable
+              key={key}
+              style={[
+                styles.themeButton,
+                {
+                  backgroundColor: currentTheme === key ? palette.tint : 'transparent',
+                },
+              ]}
+              onPress={() => setTheme(key)}
+            >
+              {icon}
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      <View style={{ flex: 1 }} />
+
+      <Button title="ذخیره تغییرات" variant="primary" fullWidth disabled={isSubmitting || !isDirty} onPress={handleSubmit(handleSave)} />
+      <Button title="نظرات و پیشنهادات" variant="secondary" fullWidth />
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    gap: 16,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    gap: 24,
   },
-  header: {
-    gap: 8,
-  },
-  subtitle: {
-    opacity: 0.8,
-  },
-  card: {
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 16,
-    gap: 14,
-    borderColor: '#e5e7eb',
-  },
-  avatarRow: {
+  topHeader: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    paddingHorizontal: 0,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  header: {
+    alignItems: 'center',
+    gap: 8,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: '#e5e7eb',
+    borderWidth: 2,
+  },
+  form: {
+    gap: 16,
   },
   field: {
     gap: 8,
   },
-  label: {},
+  label: {
+    textAlign: 'right',
+  },
   input: {
     borderWidth: 1,
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     textAlign: 'right',
     fontFamily: vazirmatnFamilies.regular,
-  },
-  metaRow: {
-    flexDirection: 'row-reverse',
-    justifyContent: 'space-between',
-  },
-  metaLabel: {
-    opacity: 0.8,
-  },
-  metaValue: {},
-  actions: {
-    gap: 10,
+    fontSize: 16,
   },
   errorText: {
     color: '#ef4444',
     fontSize: 13,
+    textAlign: 'right',
+  },
+  section: {
+    gap: 12,
+  },
+  themeSelector: {
+    flexDirection: 'row-reverse',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  themeButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    margin: 2,
   },
 });

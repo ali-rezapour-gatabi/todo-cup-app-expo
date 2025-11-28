@@ -10,6 +10,7 @@ type TodoStore = {
   tasks: Task[];
   profile: Profile | null;
   initialized: boolean;
+  theme: 'light' | 'dark' | 'system';
   loadTasks: () => Promise<Task[]>;
   addTask: (input: TaskInput) => Promise<Task>;
   updateTask: (id: number, changes: TaskUpdate) => Promise<Task>;
@@ -19,12 +20,22 @@ type TodoStore = {
   runDailyRepeatCheck: () => Promise<RepeatCheckResult>;
   loadProfile: () => Promise<Profile>;
   saveProfile: (input: ProfileInput) => Promise<Profile>;
+  setTheme: (theme: 'light' | 'dark' | 'system') => Promise<void>;
 };
 
 export const useTodoStore = create<TodoStore>((set, get) => ({
   tasks: [],
   profile: null,
   initialized: false,
+  theme: 'system',
+
+  setTheme: async (theme) => {
+    set({ theme });
+    const profile = get().profile ?? (await get().loadProfile());
+    const newProfile = { ...profile, settings: { ...profile.settings, theme } };
+    await upsertProfile(newProfile);
+    set({ profile: newProfile as Profile });
+  },
 
   loadTasks: async () => {
     await initializeDatabase();
@@ -73,10 +84,13 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
     const existing = await fetchProfile();
     if (existing) {
       set({ profile: existing });
+      if (existing.settings?.theme) {
+        set({ theme: existing.settings.theme });
+      }
       return existing;
     }
-    const created = await upsertProfile({ name: 'کاربر' });
-    set({ profile: created });
+    const created = await upsertProfile({ name: 'کاربر', settings: { theme: 'system' } });
+    set({ profile: created, theme: 'system' });
     return created;
   },
 

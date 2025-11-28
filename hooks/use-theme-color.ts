@@ -4,10 +4,15 @@
  */
 
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTodoStore } from '@/stores/useTodoStore';
+import { useColorScheme as useSystemColorScheme } from 'react-native';
 
 export function useThemeColor(props: { light?: string; dark?: string }, colorName: keyof typeof Colors.light & keyof typeof Colors.dark) {
-  const theme = useColorScheme() ?? 'light';
+  const storeTheme = useTodoStore((s) => s.theme);
+  const systemColorScheme = useSystemColorScheme();
+
+  const theme = storeTheme === 'system' ? (systemColorScheme ?? 'light') : storeTheme;
+
   const colorFromProps = props[theme];
 
   if (colorFromProps) {

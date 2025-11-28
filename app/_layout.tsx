@@ -1,16 +1,17 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { I18nManager } from 'react-native';
+import { I18nManager, useColorScheme as useSystemColorScheme } from 'react-native';
 import { useEffect } from 'react';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import 'react-native-reanimated';
 import 'react-native-gesture-handler';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { vazirmatnFamilies } from '@/constants/fonts';
 import { ToastProvider } from '@/components/ui/toast';
+import { useTodoStore } from '@/stores/useTodoStore';
+import { useAppInit } from '@/hooks/useAppInit';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -32,7 +33,11 @@ const vazirmatnSources = {
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const storeTheme = useTodoStore((s) => s.theme);
+  const systemTheme = useSystemColorScheme();
+  const colorScheme = storeTheme === 'system' ? systemTheme : storeTheme;
+  useAppInit();
+
   const [fontsLoaded, fontError] = useFonts(vazirmatnSources);
 
   useEffect(() => {
@@ -62,9 +67,8 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="task-form" options={{ presentation: 'modal', title: 'فعالیت' }} />
         </Stack>
-        <StatusBar style="auto" />
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       </ThemeProvider>
     </ToastProvider>
   );

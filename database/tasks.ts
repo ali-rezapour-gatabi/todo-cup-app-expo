@@ -1,6 +1,7 @@
 import { getAll, getFirst, run, touchTimestamp } from '@/database';
 import { Task, TaskInput, TaskRow, TaskUpdate } from '@/database/types';
 import { validateTaskInput } from '@/utils/validation';
+import { todayIso } from '@/utils/date';
 
 const normalizeTask = (row: TaskRow): Task => ({
   ...row,
@@ -18,12 +19,13 @@ const sanitizeTask = (input: TaskInput | TaskUpdate, fallback?: Task) => {
     date: input.date ?? base.date,
     time: input.time ?? base.time,
     repeatDaily: input.repeatDaily !== undefined ? input.repeatDaily : base.repeatDaily,
-    isCompleted: input.isCompleted !== undefined ? input.isCompleted : base.isCompleted ?? false,
+    isCompleted: input.isCompleted !== undefined ? input.isCompleted : (base.isCompleted ?? false),
   };
 };
 
 export const fetchTasks = async (): Promise<Task[]> => {
-  const rows = await getAll<TaskRow>('SELECT * FROM tasks ORDER BY date ASC, time ASC, createdAt DESC');
+  const today = todayIso();
+  const rows = await getAll<TaskRow>('SELECT * FROM tasks WHERE date = ? ORDER BY date ASC, time ASC, createdAt DESC', [today]);
   return rows.map(normalizeTask);
 };
 
@@ -65,17 +67,7 @@ export const updateTask = async (id: number, changes: TaskUpdate): Promise<Task>
   await run(
     `UPDATE tasks SET title = ?, description = ?, priority = ?, date = ?, time = ?, repeatDaily = ?, isCompleted = ?, updatedAt = ?
      WHERE id = ?`,
-    [
-      next.title,
-      next.description || null,
-      next.priority,
-      next.date,
-      next.time,
-      next.repeatDaily ?? current.repeatDaily,
-      next.isCompleted ?? current.isCompleted,
-      timestamp,
-      id,
-    ]
+    [next.title, next.description || null, next.priority, next.date, next.time, next.repeatDaily ?? current.repeatDaily, next.isCompleted ?? current.isCompleted, timestamp, id]
   );
 
   const updated = await fetchTaskById(id);

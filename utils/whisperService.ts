@@ -21,15 +21,21 @@ export const speechRecognitionHtml = `
           const recognition = new SpeechRecognition();
           recognition.lang = '${PERSIAN_LANGUAGE}';
           recognition.interimResults = false;
+          recognition.continuous = false;
 
           recognition.onresult = (event) => {
             const text = event.results?.[0]?.[0]?.transcript || '';
             window.ReactNativeWebView.postMessage(text);
+            recognition.stop();
           };
 
           recognition.onerror = (e) => {
             const error = e?.error || 'unknown_error';
             window.ReactNativeWebView.postMessage('__ERROR__:' + error);
+          };
+
+          recognition.onspeechend = () => {
+            recognition.stop();
           };
 
           recognition.onend = () => window.ReactNativeWebView.postMessage('__STOPPED__');

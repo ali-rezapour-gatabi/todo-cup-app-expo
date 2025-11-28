@@ -35,6 +35,8 @@ export type TaskUpdate = Partial<Omit<TaskInput, 'repeatDaily'>> & {
 export type ProfileSettings = {
   lastRepeatCheck?: string;
   theme?: 'light' | 'dark' | 'system';
+  email?: string;
+  age?: number;
 };
 
 export type ProfileRow = {
@@ -53,6 +55,6 @@ export type ProfileInput = {
 export type Profile = {
   id: number;
   name: string;
-  avatar: string | null;
+  avatar: any;
   settings: ProfileSettings;
 };

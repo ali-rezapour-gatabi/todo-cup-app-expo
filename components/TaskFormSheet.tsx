@@ -56,8 +56,7 @@ type Props = {
 };
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const MAX_SHEET_HEIGHT = Math.min(screenHeight * 0.8, 600);
-const MIN_SHEET_HEIGHT = 300;
+const SHEET_HEIGHT = screenHeight * 0.6;
 const TAB_INDEX: Record<TabKey, number> = { details: 0, schedule: 1, voice: 2 };
 
 export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
@@ -67,16 +66,19 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
 
   const addTask = useTodoStore((state) => state.addTask);
   const updateTask = useTodoStore((state) => state.updateTask);
+  const loadTasks = useTodoStore((state) => state.loadTasks);
 
-  const translateY = useRef(new Animated.Value(MAX_SHEET_HEIGHT)).current;
+  const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
   const tabSlideAnim = useRef(new Animated.Value(0)).current;
 
   const [renderSheet, setRenderSheet] = useState(visible);
   const [activeTab, setActiveTab] = useState<TabKey>('details');
+  const [voiceTabMounted, setVoiceTabMounted] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [datePickerMounted, setDatePickerMounted] = useState(false);
   const [timePickerVisible, setTimePickerVisible] = useState(false);
+  const [iosTimePickerMounted, setIosTimePickerMounted] = useState(false);
   const [iosTimeValue, setIosTimeValue] = useState(() => parseTimeToDate(defaultTime()));
-  const [sheetHeight, setSheetHeight] = useState(MIN_SHEET_HEIGHT);
 
   const defaultValues = useMemo<TaskFormValues>(
     () => ({
@@ -122,12 +124,6 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
     }).start();
   }, [activeTab, tabSlideAnim]);
 
-  const handleContentLayout = useCallback((event: any) => {
-    const { height } = event.nativeEvent.layout;
-    const newHeight = Math.min(Math.max(height + 200, MIN_SHEET_HEIGHT), MAX_SHEET_HEIGHT);
-    setSheetHeight(newHeight);
-  }, []);
-
   useEffect(() => {
     if (visible) {
       setRenderSheet(true);
@@ -154,7 +150,7 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
       setActiveTab('details');
     } else if (renderSheet) {
       Animated.timing(translateY, {
-        toValue: MAX_SHEET_HEIGHT,
+        toValue: SHEET_HEIGHT,
         duration: 220,
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
@@ -177,7 +173,7 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
       PanResponder.create({
         onMoveShouldSetPanResponder: (_, gesture) => gesture.dy > 8,
         onPanResponderMove: (_, gesture) => {
-          const next = Math.min(Math.max(0, gesture.dy), sheetHeight);
+          const next = Math.min(Math.max(0, gesture.dy), SHEET_HEIGHT);
           translateY.setValue(next);
         },
         onPanResponderRelease: (_, gesture) => {
@@ -193,7 +189,7 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
           }).start();
         },
       }),
-    [requestClose, translateY, sheetHeight]
+    [requestClose, translateY]
   );
 
   const handleTimeChange = (date?: Date) => {
@@ -222,6 +218,7 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
       });
       return;
     }
+    setIosTimePickerMounted(true);
     setIosTimeValue(initialDate);
     setTimePickerVisible(true);
   };
@@ -252,12 +249,17 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
     }
   };
 
+  const handleVoiceTaskCreated = useCallback(async () => {
+    await loadTasks();
+    requestClose();
+  }, [loadTasks, requestClose]);
+
   if (!renderSheet) {
     return null;
   }
 
   const backdropOpacity = translateY.interpolate({
-    inputRange: [0, sheetHeight],
+    inputRange: [0, SHEET_HEIGHT],
     outputRange: [0.45, 0],
     extrapolate: 'clamp',
   });
@@ -301,7 +303,7 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
           styles.sheetContainer,
           {
             backgroundColor: palette.surface,
-            height: sheetHeight,
+            height: SHEET_HEIGHT,
             transform: [{ translateY }],
           },
         ]}
@@ -327,7 +329,12 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
                 return (
                   <Pressable
                     key={tab.key}
-                    onPress={() => setActiveTab(tab.key as TabKey)}
+                    onPress={() => {
+                      if (tab.key === 'voice') {
+                        setVoiceTabMounted(true);
+                      }
+                      setActiveTab(tab.key as TabKey);
+                    }}
                     style={[styles.tabButton, selected && { backgroundColor: palette.tint + '24', borderColor: palette.tint }]}
                   >
                     <View style={[styles.tabIcon]}>{tab.icon}</View>
@@ -337,7 +344,7 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
             </View>
           </View>
 
-          <View style={styles.tabContainer} onLayout={handleContentLayout}>
+          <View style={styles.tabContainer}>
             <Animated.View
               style={[
                 styles.tabAnimatedContent,
@@ -452,7 +459,12 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
                       <ThemedText weight="bold">تاریخ</ThemedText>
                     </View>
                     <Pressable
-                      onPress={() => (!repeatValue ? setDatePickerVisible(true) : null)}
+                      onPress={() => {
+                        if (!repeatValue) {
+                          setDatePickerMounted(true);
+                          setDatePickerVisible(true);
+                        }
+                      }}
                       disabled={repeatValue}
                       style={[styles.input, styles.inlineInput, { borderColor: palette.border, backgroundColor: repeatValue ? palette.border + '33' : palette.background }]}
                     >
@@ -499,26 +511,26 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
               pointerEvents={activeTab === 'voice' ? 'auto' : 'none'}
             >
               <ScrollView style={styles.formScroll} contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                <View style={styles.tabContent}>
-                  <VoiceTab />
-                </View>
+                <View style={styles.tabContent}>{voiceTabMounted ? <VoiceTab onTaskCreated={handleVoiceTaskCreated} /> : null}</View>
               </ScrollView>
             </Animated.View>
           </View>
         </View>
       </Animated.View>
 
-      <JalaliDatePickerModal
-        visible={datePickerVisible}
-        selectedIsoDate={dateValue}
-        onClose={() => setDatePickerVisible(false)}
-        onConfirm={(iso) => {
-          setValue('date', iso, { shouldValidate: true });
-          setDatePickerVisible(false);
-        }}
-      />
+      {datePickerMounted ? (
+        <JalaliDatePickerModal
+          visible={datePickerVisible}
+          selectedIsoDate={dateValue}
+          onClose={() => setDatePickerVisible(false)}
+          onConfirm={(iso) => {
+            setValue('date', iso, { shouldValidate: true });
+            setDatePickerVisible(false);
+          }}
+        />
+      ) : null}
 
-      {Platform.OS === 'ios' ? (
+      {Platform.OS === 'ios' && iosTimePickerMounted ? (
         <Modal visible={timePickerVisible} transparent animationType="fade" onRequestClose={() => setTimePickerVisible(false)}>
           <Pressable style={styles.modalBackdrop} onPress={() => setTimePickerVisible(false)} />
           <View style={[styles.timeSheet, { backgroundColor: palette.surface }]}>
