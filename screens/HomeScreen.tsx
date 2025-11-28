@@ -49,7 +49,6 @@ export const HomeScreen = () => {
   const tasks = useTodoStore((state) => state.tasks);
   const loadTasks = useTodoStore((state) => state.loadTasks);
   const deleteTask = useTodoStore((state) => state.deleteTask);
-  const toggleRepeat = useTodoStore((state) => state.toggleRepeat);
   const toggleCompleted = useTodoStore((state) => state.toggleCompleted);
   useAppInit();
 
@@ -73,6 +72,8 @@ export const HomeScreen = () => {
   }, [loadTasks]);
 
   const groupedTasks = useMemo(() => groupTasksByHour(tasks), [tasks]);
+  const completedTasks = useMemo(() => tasks.filter((task) => task.isCompleted).length, [tasks]);
+  const pendingTasks = tasks.length - completedTasks;
 
   const openCreate = () => {
     setEditingTask(null);
@@ -107,8 +108,30 @@ export const HomeScreen = () => {
     <SafeAreaView style={[styles.container, { backgroundColor: palette.background }]}>
       <UserHeaderProfile />
 
-      <View style={styles.header}>
-        <ThemedText type="title">لیست فعالیت ها</ThemedText>
+      <View style={[styles.headerCard, { backgroundColor: palette.surface, borderColor: palette.border, shadowColor: palette.tint }]}>
+        <ThemedText type="title" style={[styles.headerTitle, { color: palette.text }]}>
+          لیست فعالیت ها
+        </ThemedText>
+        <View style={styles.statsRow}>
+          <View style={[styles.statCard, { backgroundColor: palette.tint + '18' }]}>
+            <ThemedText weight="semiBold" style={[styles.statNumber, { color: palette.tint }]}>
+              {pendingTasks}
+            </ThemedText>
+            <ThemedText style={[styles.statLabel, { color: palette.icon }]}>فعال</ThemedText>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: palette.completedTask + '55' }]}>
+            <ThemedText weight="semiBold" style={[styles.statNumber, { color: scheme === 'dark' ? '#F5F3FF' : '#1e1b4b' }]}>
+              {completedTasks}
+            </ThemedText>
+            <ThemedText style={[styles.statLabel, { color: palette.icon }]}>تمام شده</ThemedText>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: palette.border + '70' }]}>
+            <ThemedText weight="semiBold" style={[styles.statNumber, { color: palette.text }]}>
+              {tasks.length}
+            </ThemedText>
+            <ThemedText style={[styles.statLabel, { color: palette.icon }]}>کل</ThemedText>
+          </View>
+        </View>
       </View>
 
       <Button title={null} variant="primary" fullWidth icon={<Plus color={palette.background} size={34} />} onPress={openCreate} style={styles.addButton} />
@@ -139,13 +162,7 @@ export const HomeScreen = () => {
             <View style={styles.taskList}>
               {item.tasks.map((task, index) => (
                 <View key={task.id} style={index > 0 ? styles.taskSpacing : undefined}>
-                  <TaskCard
-                    task={task}
-                    onPress={() => openEdit(task)}
-                    onDelete={() => handleDelete(task.id)}
-                    onToggleRepeat={() => toggleRepeat(task.id)}
-                    onToggleCompleted={(next) => handleToggleCompleted(task, next)}
-                  />
+                  <TaskCard task={task} onPress={() => openEdit(task)} onDelete={() => handleDelete(task.id)} onToggleCompleted={(next) => handleToggleCompleted(task, next)} />
                 </View>
               ))}
             </View>
@@ -174,12 +191,57 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
-  header: {
-    gap: 6,
-    marginTop: 10,
+  headerCard: {
+    gap: 10,
+    borderRadius: 20,
+    padding: 16,
+    marginTop: 4,
+    borderWidth: 1,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
   },
-  subtitle: {
-    opacity: 0.8,
+  headerTopRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  badgeText: {
+    fontSize: 13,
+  },
+  headerHint: {
+    fontSize: 14,
+  },
+  headerTitle: {
+    fontSize: 28,
+    lineHeight: 30,
+  },
+  statsRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 10,
+  },
+  statCard: {
+    flex: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  statNumber: {
+    fontSize: 17,
+  },
+  statLabel: {
+    fontSize: 13,
   },
   listContent: {
     paddingVertical: 12,
