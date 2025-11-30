@@ -60,6 +60,7 @@ const SHEET_HEIGHT = screenHeight * 0.6;
 const TAB_INDEX: Record<TabKey, number> = { details: 0, schedule: 1, voice: 2 };
 
 export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
+  const inputTitleRef = useRef<TextInput>(null);
   const scheme = useColorScheme() ?? 'light';
   const palette = Colors[scheme];
   const { showToast } = useToast();
@@ -293,7 +294,7 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
   const voiceOpacity = makeOpacity(2);
 
   return (
-    <Modal visible transparent animationType="none" onRequestClose={requestClose} statusBarTranslucent>
+    <Modal visible transparent animationType="none" onRequestClose={requestClose} statusBarTranslucent onShow={() => inputTitleRef.current?.focus()}>
       <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={requestClose} />
       </Animated.View>
@@ -368,6 +369,7 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
                       render={({ field: { value, onChange, onBlur } }) => (
                         <TextInput
                           placeholder="عنوان فعالیت را بنویسید"
+                          ref={inputTitleRef}
                           placeholderTextColor={palette.icon}
                           value={value}
                           onChangeText={onChange}
@@ -447,7 +449,7 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
                       <Clock3 size={16} color={palette.icon} />
                       <ThemedText weight="bold">ساعت</ThemedText>
                     </View>
-                    <Pressable onPress={showTimePicker} style={[styles.input, styles.inlineInput, { borderColor: palette.border }]}>
+                    <Pressable onPress={showTimePicker} style={[styles.input, styles.inlineInput, { borderColor: palette.border, backgroundColor: palette.background }]}>
                       <ThemedText weight="semiBold">{timeValue || defaultTime()}</ThemedText>
                       <ThemedText style={styles.secondaryText}>۲۴ ساعته</ThemedText>
                     </Pressable>
