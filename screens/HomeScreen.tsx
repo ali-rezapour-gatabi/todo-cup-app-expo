@@ -162,7 +162,13 @@ export const HomeScreen = () => {
             <View style={styles.taskList}>
               {item.tasks.map((task, index) => (
                 <View key={task.id} style={index > 0 ? styles.taskSpacing : undefined}>
-                  <TaskCard task={task} onPress={() => openEdit(task)} onDelete={() => handleDelete(task.id)} onToggleCompleted={(next) => handleToggleCompleted(task, next)} />
+                  <TaskCard
+                    task={task}
+                    onLongPress={() => handleDelete(task.id)}
+                    onPress={() => openEdit(task)}
+                    onDelete={() => handleDelete(task.id)}
+                    onToggleCompleted={(next) => handleToggleCompleted(task, next)}
+                  />
                 </View>
               ))}
             </View>

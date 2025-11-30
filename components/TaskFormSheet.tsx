@@ -18,6 +18,7 @@ import { useTodoStore } from '@/stores/useTodoStore';
 import { todayIso } from '@/utils/date';
 import { useToast } from '@/components/ui/toast';
 import { VoiceTab } from '@/components/VoiceTab';
+import CustomModal from './ui/modal';
 
 const defaultTime = () => {
   const now = new Date();
@@ -259,12 +260,6 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
     return null;
   }
 
-  const backdropOpacity = translateY.interpolate({
-    inputRange: [0, SHEET_HEIGHT],
-    outputRange: [0.45, 0],
-    extrapolate: 'clamp',
-  });
-
   const formTitle = task ? 'ویرایش فعالیت' : 'فعالیت جدید';
 
   const detailsTranslateX = tabSlideAnim.interpolate({
@@ -294,11 +289,7 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
   const voiceOpacity = makeOpacity(2);
 
   return (
-    <Modal visible transparent animationType="none" onRequestClose={requestClose} statusBarTranslucent onShow={() => inputTitleRef.current?.focus()}>
-      <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={requestClose} />
-      </Animated.View>
-
+    <CustomModal visible={visible} transparent animationType="slide" onClose={requestClose} statusBarTranslucent onShow={() => inputTitleRef.current?.focus()}>
       <Animated.View
         style={[
           styles.sheetContainer,
@@ -534,7 +525,7 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
 
       {Platform.OS === 'ios' && iosTimePickerMounted ? (
         <Modal visible={timePickerVisible} transparent animationType="fade" onRequestClose={() => setTimePickerVisible(false)}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setTimePickerVisible(false)} />
+          <Pressable onPress={() => setTimePickerVisible(false)} />
           <View style={[styles.timeSheet, { backgroundColor: palette.surface }]}>
             <ThemedText style={styles.timeSheetTitle} weight="bold">
               انتخاب ساعت
@@ -563,15 +554,11 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
           </View>
         </Modal>
       ) : null}
-    </Modal>
+    </CustomModal>
   );
 };
 
 const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
   sheetContainer: {
     position: 'absolute',
     left: 0,
@@ -716,10 +703,6 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#ef4444',
     fontSize: 13,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
   },
   timeSheet: {
     position: 'absolute',

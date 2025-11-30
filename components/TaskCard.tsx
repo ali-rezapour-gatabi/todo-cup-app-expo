@@ -1,13 +1,12 @@
 import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { TimerIcon, Trash } from 'lucide-react-native';
+import { TimerIcon } from 'lucide-react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Task } from '@/database/types';
 import { Checkbox } from './ui/check-box';
-import { Button } from './ui/button';
 
 type Props = {
   task: Task;
@@ -15,6 +14,7 @@ type Props = {
   onDelete?: () => void;
   onToggleRepeat?: () => void;
   onToggleCompleted?: (next: boolean) => void;
+  onLongPress?: () => void;
 };
 
 const priorityColor: Record<Task['priority'], string> = {
@@ -23,7 +23,7 @@ const priorityColor: Record<Task['priority'], string> = {
   3: '#EF4444',
 };
 
-const TaskCardComponent = ({ task, onPress, onToggleCompleted, onDelete }: Props) => {
+const TaskCardComponent = ({ task, onPress, onToggleCompleted, onLongPress }: Props) => {
   const scheme = useColorScheme() ?? 'dark';
   const palette = Colors[scheme];
 
@@ -33,10 +33,11 @@ const TaskCardComponent = ({ task, onPress, onToggleCompleted, onDelete }: Props
     <View style={{ display: 'flex', flexDirection: 'row-reverse', overflow: 'hidden' }}>
       <View style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
         <Checkbox value={completed} onChange={onToggleCompleted} style={{ width: 35, height: 35, marginLeft: 5 }} />
-        <Button title={null} variant="ghost" icon={<Trash color={'red'} />} onPress={onDelete} style={{ width: 35, height: 35, marginLeft: 5 }} />
       </View>
       <Pressable
         onPress={onPress}
+        delayLongPress={700}
+        onLongPress={onLongPress}
         style={({ pressed }) => [
           styles.container,
           {
