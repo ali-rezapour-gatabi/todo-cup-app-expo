@@ -22,7 +22,7 @@ import { AiApiRequest } from '@/utils/ai-request';
 import { Task } from '@/database/types';
 import { useTodoStore } from '@/stores/useTodoStore';
 
-type RecorderState = 'idle' | 'recording';
+type RecorderState = 'idle' | 'recording' | 'processing';
 
 type VoiceTabProps = {
   onTaskCreated?: (task: Task) => void | Promise<void>;
@@ -36,17 +36,18 @@ export const VoiceTab = ({ onTaskCreated }: VoiceTabProps) => {
 
   const [transcript, setTranscript] = useState('');
   const [state, setState] = useState<RecorderState>('idle');
-  const [isProcessingTask, setIsProcessingTask] = useState(false);
   const [isSupported, setIsSupported] = useState<boolean>(Platform.OS !== 'web' ? true : whisperService.isBrowserSupported());
+
   const webViewRef = useRef<WebView | null>(null);
   const browserRecognizerRef = useRef<ReturnType<typeof createBrowserRecognizer> | null>(null);
   const levelAnim = useRef(new Animated.Value(0.25)).current;
   const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
-  const recognitionSessionRef = useRef({ id: 0, hasStopped: false, lastText: '' });
-  const processedSessionIdRef = useRef<number | null>(null);
+  const currentTranscriptRef = useRef('');
+  const isProcessingRef = useRef(false);
 
   const isRecording = state === 'recording';
-  const isStartDisabled = !isSupported || isProcessingTask;
+  const isProcessing = state === 'processing';
+  const isStartDisabled = !isSupported || isProcessing;
 
   const animateLevel = useCallback(
     (value: number) => {
@@ -78,74 +79,85 @@ export const VoiceTab = ({ onTaskCreated }: VoiceTabProps) => {
     animateLevel(0.15);
   }, [animateLevel]);
 
-  const finishListening = useCallback(() => {
-    stopPulse();
-    setState('idle');
-  }, [stopPulse]);
-
-  const resetRecognitionSession = useCallback(() => {
-    recognitionSessionRef.current = { id: recognitionSessionRef.current.id + 1, hasStopped: false, lastText: '' };
-    processedSessionIdRef.current = null;
-  }, []);
-
   const processTranscriptToTask = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
-      const currentSessionId = recognitionSessionRef.current.id;
 
-      if (!trimmed || trimmed.length < 10) return;
-      if (processedSessionIdRef.current === currentSessionId) return;
+      if (!trimmed || trimmed.length < 3) {
+        showToast({
+          type: 'warning',
+          title: 'متن کوتاه',
+          message: 'لطفا جملات طولانی‌تری بگویید.',
+        });
+        setState('idle');
+        return;
+      }
 
-      processedSessionIdRef.current = currentSessionId;
-      setIsProcessingTask(true);
+      if (isProcessingRef.current) return;
+      isProcessingRef.current = true;
+      setState('processing');
 
       try {
         const task = await AiApiRequest(trimmed);
-        console.log(task);
         await addTask(task);
         await onTaskCreated?.(task);
-        showToast({ type: 'success', title: 'تسک ساخته شد', message: 'فعالیت از صدای شما ثبت شد.' });
+
+        showToast({
+          type: 'success',
+          title: '✓ تسک ساخته شد',
+          message: 'فعالیت از صدای شما ثبت شد.',
+        });
+
+        setTranscript('');
+        currentTranscriptRef.current = '';
       } catch (error) {
         const message = error instanceof Error ? error.message : 'امکان ساخت تسک از متن وجود ندارد.';
-        showToast({ type: 'error', title: 'خطا در ساخت تسک', message });
+        showToast({
+          type: 'error',
+          title: 'خطا در ساخت تسک',
+          message,
+        });
       } finally {
-        setIsProcessingTask(false);
+        isProcessingRef.current = false;
+        setState('idle');
       }
     },
     [addTask, onTaskCreated, showToast]
   );
 
-  const handleResult = useCallback(
-    (text: string) => {
-      const trimmed = text.trim();
-      recognitionSessionRef.current.lastText = trimmed;
-      setTranscript(trimmed);
+  const handleSpeechEnd = useCallback(() => {
+    stopPulse();
+    setState('idle');
 
-      if (!trimmed) return;
+    const text = currentTranscriptRef.current.trim();
+    setTranscript(text);
+    if (text) {
+      void processTranscriptToTask(text);
+    }
+  }, [processTranscriptToTask, stopPulse]);
 
-      if (recognitionSessionRef.current.hasStopped) {
-        void processTranscriptToTask(trimmed);
-      }
-      showToast({ type: 'success', title: 'متن آماده شد', message: 'متن از صدای شما استخراج شد.' });
-    },
-    [processTranscriptToTask, showToast]
-  );
+  const handleResult = useCallback((text: string) => {
+    const trimmed = text.trim();
+    currentTranscriptRef.current = trimmed;
+    setTranscript(trimmed);
+  }, []);
 
   const handleError = useCallback(
     (message: string) => {
-      finishListening();
-      showToast({ type: 'error', title: 'خطا در تشخیص صدا', message });
+      stopPulse();
+      setState('idle');
+      showToast({
+        type: 'error',
+        title: 'خطا در تشخیص صدا',
+        message,
+      });
     },
-    [finishListening, showToast]
+    [showToast, stopPulse]
   );
 
   const handleStop = useCallback(() => {
-    finishListening();
-    recognitionSessionRef.current.hasStopped = true;
-    if (recognitionSessionRef.current.lastText) {
-      void processTranscriptToTask(recognitionSessionRef.current.lastText);
-    }
-  }, [finishListening, processTranscriptToTask]);
+    handleSpeechEnd();
+  }, [handleSpeechEnd]);
 
   const cleanupListening = useCallback(() => {
     if (Platform.OS === 'web') {
@@ -153,8 +165,9 @@ export const VoiceTab = ({ onTaskCreated }: VoiceTabProps) => {
     } else {
       stopNativeListening(webViewRef);
     }
-    finishListening();
-  }, [finishListening]);
+    stopPulse();
+    setState('idle');
+  }, [stopPulse]);
 
   useEffect(() => {
     return () => {
@@ -164,22 +177,27 @@ export const VoiceTab = ({ onTaskCreated }: VoiceTabProps) => {
   }, [cleanupListening]);
 
   const startListening = useCallback(() => {
-    if (!isSupported || isProcessingTask) return;
+    if (!isSupported || isProcessing) return;
 
-    resetRecognitionSession();
     setTranscript('');
+    currentTranscriptRef.current = '';
 
     if (Platform.OS === 'web') {
       if (!browserRecognizerRef.current) {
         const recognizer = createBrowserRecognizer({
           onResult: handleResult,
+          onSpeechEnd: handleSpeechEnd,
           onStop: handleStop,
           onError: handleError,
         });
 
         if (!recognizer) {
           setIsSupported(false);
-          showToast({ type: 'error', title: 'عدم پشتیبانی', message: 'مرورگر شما از تبدیل گفتار به متن پشتیبانی نمی‌کند.' });
+          showToast({
+            type: 'error',
+            title: 'عدم پشتیبانی',
+            message: 'مرورگر شما از تبدیل گفتار به متن پشتیبانی نمی‌کند.',
+          });
           return;
         }
         browserRecognizerRef.current = recognizer;
@@ -198,25 +216,18 @@ export const VoiceTab = ({ onTaskCreated }: VoiceTabProps) => {
 
     setState('recording');
     startPulse();
-  }, [handleError, handleResult, handleStop, isProcessingTask, isSupported, resetRecognitionSession, showToast, startPulse]);
+  }, [handleError, handleResult, handleSpeechEnd, handleStop, isProcessing, isSupported, showToast, startPulse]);
 
   const stopListening = useCallback(() => {
     if (!isRecording) return;
-
-    if (Platform.OS === 'web') {
-      browserRecognizerRef.current?.stop();
-    } else {
-      stopNativeListening(webViewRef);
-    }
-
-    finishListening();
-  }, [finishListening, isRecording]);
+    cleanupListening();
+  }, [cleanupListening, isRecording]);
 
   const toggleListening = useCallback(() => {
-    if (!isRecording) {
-      startListening();
-    } else {
+    if (isRecording) {
       stopListening();
+    } else {
+      startListening();
     }
   }, [isRecording, startListening, stopListening]);
 
@@ -227,6 +238,9 @@ export const VoiceTab = ({ onTaskCreated }: VoiceTabProps) => {
       switch (payload.type) {
         case 'result':
           handleResult(payload.text);
+          break;
+        case 'speechend':
+          handleSpeechEnd();
           break;
         case 'error':
           handleError(payload.message);
@@ -240,7 +254,7 @@ export const VoiceTab = ({ onTaskCreated }: VoiceTabProps) => {
           break;
       }
     },
-    [handleError, handleResult, handleStop]
+    [handleError, handleResult, handleSpeechEnd, handleStop]
   );
 
   return (
@@ -249,19 +263,30 @@ export const VoiceTab = ({ onTaskCreated }: VoiceTabProps) => {
         <ThemedText weight="bold" style={{ color: palette.text }}>
           متن استخراج شده
         </ThemedText>
-        <ThemedText style={styles.secondaryText}>بعد از پایان صحبت، متن به صورت خودکار نمایش داده می‌شود.</ThemedText>
+        <ThemedText style={styles.secondaryText}>
+          {isRecording ? '🎤 در حال گوش دادن... وقتی حرف زدن تموم شد، تسک خودکار ساخته می‌شود' : isProcessing ? '⏳ در حال ساخت تسک...' : 'روی میکروفون بزنید و شروع کنید'}
+        </ThemedText>
       </View>
+
       <TextInput
         multiline
         numberOfLines={5}
         value={transcript}
         onChangeText={setTranscript}
+        editable={!isProcessing}
         placeholder="اینجا متن تبدیل شده از صدا نمایش داده می‌شود"
         placeholderTextColor={palette.icon}
-        style={[styles.textArea, { borderColor: palette.border, color: palette.text }]}
+        style={[
+          styles.textArea,
+          {
+            borderColor: isRecording ? palette.tint : palette.border,
+            color: palette.text,
+            opacity: isProcessing ? 0.6 : 1,
+          },
+        ]}
       />
 
-      {Platform.OS !== 'web' ? (
+      {Platform.OS !== 'web' && (
         <WebView
           ref={webViewRef}
           source={{ html: speechRecognitionHtml }}
@@ -270,10 +295,9 @@ export const VoiceTab = ({ onTaskCreated }: VoiceTabProps) => {
           javaScriptEnabled
           style={styles.hiddenWebView}
         />
-      ) : null}
+      )}
 
       <View style={styles.actionsRow}>
-        {isProcessingTask ? <ThemedText style={[styles.secondaryText, { color: palette.text, marginBottom: 6 }]}>در حال ساخت تسک از متن شما...</ThemedText> : null}
         <View style={styles.micWrapper}>
           <Animated.View
             pointerEvents="none"
@@ -303,7 +327,7 @@ export const VoiceTab = ({ onTaskCreated }: VoiceTabProps) => {
                 borderColor: palette.tint,
                 opacity: isStartDisabled ? 0.4 : 1,
               },
-              pressed && { transform: [{ scale: 0.96 }] },
+              pressed && !isStartDisabled && { transform: [{ scale: 0.96 }] },
             ]}
           >
             <Mic size={28} color={isRecording ? palette.background : palette.text} />

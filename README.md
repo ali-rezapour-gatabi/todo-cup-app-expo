@@ -1,50 +1,98 @@
-# Welcome to your Expo app 👋
+# TodoCup
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+TodoCup یک اپلیکیشن مدیریت فعالیت‌های روزانه است که روی موبایل (Android / iOS) با استفاده از Expo و React Native ساخته شده است.  
+تمرکز اپ روی برنامه‌ریزی روزانه، گروه‌بندی فعالیت‌ها بر اساس ساعت، تکرار روزانه و تجربه‌ کاربری فارسی با تقویم جلالی است.
 
-## Get started
+## ویژگی‌ها
 
-1. Install dependencies
+- افزودن، ویرایش و حذف فعالیت‌ها با فرم پیشرفته
+- نمایش فعالیت‌های امروز، گروه‌بندی‌شده بر اساس ساعت (`HomeScreen`)
+- پشتیبانی از تکرار روزانه فعالیت‌ها (اتوماتیک برای روزهای بعد)
+- وضعیت انجام‌شده / انجام‌نشده برای هر فعالیت
+- ذخیره‌سازی محلی با `expo-sqlite` در پایگاه داده `todocup.db`
+- پروفایل کاربر و تنظیمات (تم روشن/تاریک، آخرین زمان چک تکرار روزانه)
+- انتخاب تاریخ با تقویم جلالی و انتخاب ساعت
+- تب اختصاصی برای ساخت فعالیت با صدا (`VoiceTab`)
+- رابط کاربری با انیمیشن، کارت‌ها و تایپوگرافی فارسی
+
+## تکنولوژی‌ها
+
+- **Expo + React Native** برای ساخت اپ موبایل
+- **expo-router** برای مسیریابی تب‌ها (پوشه `app/(tabs)`)
+- **Zustand** برای مدیریت وضعیت سراسری (`stores/useTodoStore.ts`)
+- **expo-sqlite** برای دیتابیس محلی (`database/index.ts`, `database/tasks.ts`, `database/profile.ts`)
+- **react-hook-form + zod** برای اعتبارسنجی فرم فعالیت (`TaskFormSheet`)
+- **Jalali calendar** برای نمایش و انتخاب تاریخ فارسی
+
+## منطق اصلی پروژه (Project Logic)
+
+- مدل فعالیت (`Task`) در فایل `database/types.ts` تعریف شده و شامل عنوان، توضیحات، اولویت، تاریخ، ساعت، تکرار روزانه و وضعیت انجام است.
+- تمام فعالیت‌ها در جدول `tasks` پایگاه داده `todocup.db` ذخیره می‌شوند (`database/index.ts`, `database/tasks.ts`).
+- صفحه اصلی (`screens/HomeScreen.tsx`):
+  - لیست فعالیت‌های امروز را از استور می‌گیرد (`useTodoStore`).
+  - فعالیت‌ها را بر اساس ساعت به گروه‌های ساعتی تقسیم می‌کند (مثل `09:00`, `10:00`).
+  - آمار «فعال»، «تمام شده» و «کل فعالیت‌ها» را نمایش می‌دهد.
+  - امکان تکمیل/عدم‌تکمیل، ویرایش و حذف هر فعالیت را فراهم می‌کند.
+- فرم فعالیت (`components/TaskFormSheet.tsx`):
+  - برای ساخت یا ویرایش فعالیت استفاده می‌شود.
+  - شامل تب جزئیات، برنامه‌ریزی (تاریخ/ساعت/تکرار روزانه) و تب صوتی است.
+  - داده‌ها را اعتبارسنجی می‌کند و سپس از طریق `useTodoStore` در دیتابیس ذخیره می‌کند.
+- منطق تکرار روزانه در `utils/repeatDaily` و اکشن `runDailyRepeatCheck` در `useTodoStore` پیاده‌سازی شده و در زمان مناسب، فعالیت‌های تکرارشونده را برای روز جدید کپی می‌کند.
+
+## شروع به کار (Run)
+
+1. نصب وابستگی‌ها:
 
    ```bash
    npm install
    ```
 
-2. Start the app
+2. اجرای پروژه در محیط توسعه:
 
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+3. از طریق یکی از گزینه‌ها اپ را باز کنید:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- شبیه‌ساز Android
+- شبیه‌ساز iOS
+- اپ Expo Go روی گوشی
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## ساختار پوشه‌ها
 
-## Get a fresh project
+- `app/`  
+  مسیریابی با `expo-router` و تب‌ها (صفحه خانه، پروفایل و ...)
 
-When you're ready, run:
+- `screens/`  
+  صفحات اصلی اپ مثل `HomeScreen.tsx`.
 
-```bash
-npm run reset-project
-```
+- `components/`  
+  کامپوننت‌های UI مثل `TaskCard`, `TaskFormSheet`, `UserHeaderProfile`, `VoiceTab`.
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+- `database/`  
+  منطق دیتابیس SQLite، جداول `tasks` و `profile` و انواع داده.
 
-## Learn more
+- `stores/`  
+  استور Zustand (`useTodoStore`) برای مدیریت فعالیت‌ها، پروفایل و تنظیمات.
 
-To learn more about developing your project with Expo, look at the following resources:
+- `utils/`  
+  توابع کمکی مانند تاریخ، تکرار روزانه و اعتبارسنجی.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## اسکریپت‌ها
 
-## Join the community
+- `npm start` – اجرای اپ در حالت توسعه
+- `npm run android` – ساخت و اجرای نسخه اندروید (Expo)
+- `npm run ios` – ساخت و اجرای نسخه iOS (روی macOS)
+- `npm run web` – اجرای نسخه وب
+- `npm run lint` – چک کردن کد با ESLint و Prettier
+- `npm run lint:fix` – اصلاح خودکار مشکلات lint
+- `npm run format` – بررسی فرمت کد با Prettier
+- `npm run format:fix` – فرمت خودکار کدها
 
-Join our community of developers creating universal apps.
+## نیازمندی‌ها
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- Node.js و npm
+- نصب Expo CLI (اختیاری، برای کار راحت‌تر با Expo)
+
+اگر مایل هستید، می‌توانم بخش دیگری برای «چگونه مشارکت کنیم» یا اسکرین‌شات‌ها هم به این README اضافه کنم.
