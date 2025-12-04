@@ -11,13 +11,13 @@ type TodoStore = {
   profile: Profile | null;
   initialized: boolean;
   theme: 'light' | 'dark' | 'system';
-  loadTasks: () => Promise<Task[]>;
+  loadTasks: (date: any) => Promise<Task[]>;
   addTask: (input: TaskInput) => Promise<Task>;
   updateTask: (id: number, changes: TaskUpdate) => Promise<Task>;
   deleteTask: (id: number) => Promise<void>;
   toggleRepeat: (id: number) => Promise<Task>;
   toggleCompleted: (id: number, value?: boolean) => Promise<Task>;
-  runDailyRepeatCheck: () => Promise<RepeatCheckResult>;
+  runDailyRepeatCheck: (date: any) => Promise<RepeatCheckResult>;
   loadProfile: () => Promise<Profile>;
   saveProfile: (input: ProfileInput) => Promise<Profile>;
   setTheme: (theme: 'light' | 'dark' | 'system') => Promise<void>;
@@ -37,9 +37,9 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
     set({ profile: newProfile as Profile });
   },
 
-  loadTasks: async () => {
+  loadTasks: async (date: any) => {
     await initializeDatabase();
-    const tasks = await fetchTasks();
+    const tasks = await fetchTasks(date);
     set({ tasks, initialized: true });
     return tasks;
   },
@@ -100,12 +100,12 @@ export const useTodoStore = create<TodoStore>((set, get) => ({
     return profile;
   },
 
-  runDailyRepeatCheck: async () => {
+  runDailyRepeatCheck: async (date: any) => {
     const profile = get().profile ?? (await get().loadProfile());
     const lastCheck = profile?.settings?.lastRepeatCheck;
     const result = await runDailyRepeat(lastCheck);
     if (result.created > 0 || !get().initialized) {
-      await get().loadTasks();
+      await get().loadTasks(date);
     }
     if (result.lastChecked !== lastCheck && profile) {
       const updatedProfile = await upsertProfile({

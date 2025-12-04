@@ -2,18 +2,15 @@ import { Image, StyleSheet, View, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/theme';
 import { ThemedText } from './themed-text';
-import { useJalaliCalendar } from '@/hooks/use-jalali-calendar';
 import { router } from 'expo-router';
 import { useTodoStore } from '@/stores/useTodoStore';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { CalendarClock, ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft } from 'lucide-react-native';
 
 const UserHeaderProfile = () => {
   const profile = useTodoStore().profile;
   const scheme = useColorScheme();
   const palette = Colors[scheme];
-  const today = new Date();
-  const { jalaliLabel: todayJalali } = useJalaliCalendar(today, { fallbackToToday: true });
   const accentText = scheme === 'dark' ? '#F6F5FF' : '#FDFBFF';
   const name = profile?.name ?? 'کاربر';
 
@@ -36,14 +33,6 @@ const UserHeaderProfile = () => {
             <ThemedText type="subtitle" style={[styles.greeting, { color: accentText }]}>
               سلام {name}
             </ThemedText>
-            <View style={styles.linkRow}>
-              <View style={[styles.datePill, { backgroundColor: palette.surface + '25', borderColor: palette.surface + '35' }]}>
-                <CalendarClock color={accentText} size={16} />
-                <ThemedText weight="semiBold" style={[styles.dateText, { color: accentText }]}>
-                  {todayJalali}
-                </ThemedText>
-              </View>
-            </View>
           </View>
           <ChevronLeft color={accentText} size={28} />
         </View>
@@ -100,25 +89,5 @@ const styles = StyleSheet.create({
   helper: {
     fontSize: 12,
     lineHeight: 30,
-  },
-  linkRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 6,
-  },
-  linkText: {
-    fontSize: 15,
-  },
-  datePill: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  dateText: {
-    fontSize: 14,
   },
 });

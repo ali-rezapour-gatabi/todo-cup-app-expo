@@ -253,7 +253,7 @@ export const TaskFormSheet = ({ visible, onClose, task, tabKey = 'details' }: Pr
   };
 
   const handleVoiceTaskCreated = useCallback(async () => {
-    await loadTasks();
+    await loadTasks(todayIso());
     requestClose();
   }, [loadTasks, requestClose]);
 

@@ -23,9 +23,9 @@ const sanitizeTask = (input: TaskInput | TaskUpdate, fallback?: Task) => {
   };
 };
 
-export const fetchTasks = async (): Promise<Task[]> => {
+export const fetchTasks = async (date: any): Promise<Task[]> => {
   const today = todayIso();
-  const rows = await getAll<TaskRow>('SELECT * FROM tasks WHERE date = ? ORDER BY date ASC, time ASC, createdAt DESC', [today]);
+  const rows = await getAll<TaskRow>('SELECT * FROM tasks WHERE date = ? ORDER BY date ASC, time ASC, createdAt DESC', [date ?? today]);
   return rows.map(normalizeTask);
 };
 

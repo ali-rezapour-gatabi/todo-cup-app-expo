@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
-import { Plus } from 'lucide-react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
+import { CalendarClock, Plus } from 'lucide-react-native';
 import { TaskCard } from '@/components/TaskCard';
 import { TaskFormSheet } from '@/components/TaskFormSheet';
 import { ThemedText } from '@/components/themed-text';
@@ -14,6 +14,8 @@ import { ThemedView } from '@/components/themed-view';
 import UserHeaderProfile from '@/components/UserHeaderProfile';
 import { Task } from '@/database/types';
 import { useToast } from '@/components/ui/toast';
+import { useJalaliCalendar } from '@/hooks/use-jalali-calendar';
+import { JalaliDatePickerModal } from '@/components/JalaliDatePickerModal';
 
 type HourGroup = {
   hour: string;
@@ -51,11 +53,14 @@ export const HomeScreen = () => {
   const deleteTask = useTodoStore((state) => state.deleteTask);
   const toggleCompleted = useTodoStore((state) => state.toggleCompleted);
   const [sheetKey, setSheetKey] = useState('details');
-  useAppInit();
-
+  const [selectDate, setSelectDate] = useState<string | null>(null);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [formVisible, setFormVisible] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const { isoDate, jalaliLabel } = useJalaliCalendar(selectDate, { fallbackToToday: true });
+
+  useAppInit(isoDate);
 
   const handleToggleCompleted = async (task: Task, next: boolean) => {
     try {
@@ -68,9 +73,9 @@ export const HomeScreen = () => {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadTasks();
+    await loadTasks(isoDate);
     setRefreshing(false);
-  }, [loadTasks]);
+  }, [isoDate, loadTasks]);
 
   const groupedTasks = useMemo(() => groupTasksByHour(tasks), [tasks]);
   const completedTasks = useMemo(() => tasks.filter((task) => task.isCompleted).length, [tasks]);
@@ -117,9 +122,35 @@ export const HomeScreen = () => {
       <UserHeaderProfile />
 
       <View style={[styles.headerCard, { backgroundColor: palette.surface, borderColor: palette.border, shadowColor: palette.tint }]}>
-        <ThemedText type="title" style={[styles.headerTitle, { color: palette.text }]}>
-          لیست فعالیت ها
-        </ThemedText>
+        <ThemedView style={[styles.headerTopRow, { backgroundColor: 'transparent' }]}>
+          <ThemedText type="title" style={[styles.headerTitle, { color: palette.text }]}>
+            لیست فعالیت ها
+          </ThemedText>
+
+          <View style={styles.linkRow}>
+            <Pressable
+              onPress={() => setDatePickerVisible(true)}
+              style={[styles.datePill, { backgroundColor: palette.tabIconDefault + '25', borderColor: palette.surface + '35' }]}
+            >
+              <CalendarClock color={palette.text} size={17} />
+              <ThemedText weight="semiBold" style={[styles.dateText, { color: palette.text }]}>
+                {jalaliLabel}
+              </ThemedText>
+            </Pressable>
+
+            {datePickerVisible ? (
+              <JalaliDatePickerModal
+                visible={datePickerVisible}
+                selectedIsoDate={isoDate ?? ''}
+                onClose={() => setDatePickerVisible(false)}
+                onConfirm={(date) => {
+                  setSelectDate(date);
+                  setDatePickerVisible(false);
+                }}
+              />
+            ) : null}
+          </View>
+        </ThemedView>
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { backgroundColor: palette.tint + '18' }]}>
             <ThemedText weight="semiBold" style={[styles.statNumber, { color: palette.tint }]}>
@@ -246,22 +277,23 @@ const styles = StyleSheet.create({
     lineHeight: 30,
   },
   statsRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 10,
   },
   statCard: {
-    flex: 1,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     flexDirection: 'row',
     alignItems: 'center',
+    width: '30%',
     justifyContent: 'center',
     gap: 6,
   },
   statNumber: {
-    fontSize: 17,
+    fontSize: 14,
   },
   statLabel: {
     fontSize: 13,
@@ -325,5 +357,26 @@ const styles = StyleSheet.create({
   },
   taskSpacing: {
     marginTop: 4,
+  },
+
+  linkRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+  },
+  linkText: {
+    fontSize: 15,
+  },
+  datePill: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  dateText: {
+    fontSize: 14,
   },
 });
