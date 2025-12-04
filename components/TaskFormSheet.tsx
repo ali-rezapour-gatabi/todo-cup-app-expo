@@ -54,13 +54,14 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   task?: Task | null;
+  tabKey?: TabKey;
 };
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const SHEET_HEIGHT = screenHeight * 0.6;
 const TAB_INDEX: Record<TabKey, number> = { details: 0, schedule: 1, voice: 2 };
 
-export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
+export const TaskFormSheet = ({ visible, onClose, task, tabKey = 'details' }: Props) => {
   const inputTitleRef = useRef<TextInput>(null);
   const scheme = useColorScheme() ?? 'light';
   const palette = Colors[scheme];
@@ -74,7 +75,7 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
   const tabSlideAnim = useRef(new Animated.Value(0)).current;
 
   const [renderSheet, setRenderSheet] = useState(visible);
-  const [activeTab, setActiveTab] = useState<TabKey>('details');
+  const [activeTab, setActiveTab] = useState<TabKey>(tabKey);
   const [voiceTabMounted, setVoiceTabMounted] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [datePickerMounted, setDatePickerMounted] = useState(false);
@@ -149,7 +150,7 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
       const safeValues = nextValues.repeatDaily ? { ...nextValues, date: todayIso() } : nextValues;
       reset(safeValues);
       setIosTimeValue(parseTimeToDate(safeValues.time || defaultTime()));
-      setActiveTab('details');
+      setActiveTab(tabKey);
     } else if (renderSheet) {
       Animated.timing(translateY, {
         toValue: SHEET_HEIGHT,
@@ -162,7 +163,7 @@ export const TaskFormSheet = ({ visible, onClose, task }: Props) => {
         }
       });
     }
-  }, [visible, renderSheet, translateY, task, reset, defaultValues]);
+  }, [visible, renderSheet, translateY, task, reset, defaultValues, tabKey]);
 
   const requestClose = useCallback(() => {
     setDatePickerVisible(false);

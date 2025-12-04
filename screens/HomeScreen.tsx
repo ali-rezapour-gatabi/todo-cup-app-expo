@@ -50,6 +50,7 @@ export const HomeScreen = () => {
   const loadTasks = useTodoStore((state) => state.loadTasks);
   const deleteTask = useTodoStore((state) => state.deleteTask);
   const toggleCompleted = useTodoStore((state) => state.toggleCompleted);
+  const [sheetKey, setSheetKey] = useState('details');
   useAppInit();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -78,6 +79,13 @@ export const HomeScreen = () => {
   const openCreate = () => {
     setEditingTask(null);
     setFormVisible(true);
+    setSheetKey('details');
+  };
+
+  const openCreateByAi = () => {
+    setEditingTask(null);
+    setFormVisible(true);
+    setSheetKey('voice');
   };
 
   const openEdit = (task: Task) => {
@@ -134,7 +142,16 @@ export const HomeScreen = () => {
         </View>
       </View>
 
-      <Button title={null} variant="primary" fullWidth icon={<Plus color={palette.background} size={34} />} onPress={openCreate} style={styles.addButton} />
+      <Button
+        onLongPress={openCreateByAi}
+        delayLongPress={500}
+        title={null}
+        variant="primary"
+        fullWidth
+        icon={<Plus color={palette.background} size={34} />}
+        onPress={openCreate}
+        style={styles.addButton}
+      />
 
       <FlatList
         data={groupedTasks}
@@ -186,7 +203,7 @@ export const HomeScreen = () => {
         }
       />
 
-      <TaskFormSheet visible={formVisible} onClose={closeForm} task={editingTask ?? undefined} />
+      <TaskFormSheet visible={formVisible} onClose={closeForm} task={editingTask ?? undefined} tabKey={sheetKey as any} />
     </SafeAreaView>
   );
 };
